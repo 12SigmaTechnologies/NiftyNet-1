@@ -114,6 +114,7 @@ class ImageReader(Layer):
         :return: the initialised reader instance
         """
         data_param = param_to_dict(data_param)
+        print("debug: ", data_param)
 
         if not task_param:
             task_param = {mod: (mod,) for mod in list(data_param)}
@@ -148,6 +149,7 @@ class ImageReader(Layer):
             sum([list(task_param.get(name)) for name in self.names], [])
 
         for required in required_sections:
+            print(required)
             try:
                 if (file_list is None) or \
                         (required not in list(file_list)) or \
