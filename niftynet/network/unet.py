@@ -28,7 +28,8 @@ class UNet3D(TrainableLayer):
                  name='UNet'):
         super(UNet3D, self).__init__(name=name)
 
-        self.n_features = [32, 64, 128, 256, 512]
+        #self.n_features = [32, 64, 128, 256, 512]
+        self.n_features = [8, 16, 32, 64, 128]
         self.acti_func = acti_func
         self.num_classes = num_classes
 
@@ -40,7 +41,7 @@ class UNet3D(TrainableLayer):
     def layer_op(self, images, is_training=True, layer_id=-1, **unused_kwargs):
         # image_size  should be divisible by 8
         assert layer_util.check_spatial_dims(images, lambda x: x % 8 == 0)
-        assert layer_util.check_spatial_dims(images, lambda x: x >= 89)
+        #assert layer_util.check_spatial_dims(images, lambda x: x >= 89)
         block_layer = UNetBlock('DOWNSAMPLE',
                                 (self.n_features[0], self.n_features[1]),
                                 (3, 3), with_downsample_branch=True,
@@ -118,8 +119,8 @@ class UNet3D(TrainableLayer):
         # for the last layer, upsampling path is not used
         _, output_tensor = block_layer(concat_1, is_training)
 
-        crop_layer = CropLayer(border=44, name='crop-88')
-        output_tensor = crop_layer(output_tensor)
+        #crop_layer = CropLayer(border=44, name='crop-88')
+        #output_tensor = crop_layer(output_tensor)
         print(block_layer)
         return output_tensor
 
