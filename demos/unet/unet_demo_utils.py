@@ -75,7 +75,7 @@ def add_experiment_info_to_datasets(df, est_dirs):
     return combined_df
 
 
-def get_and_plot_results(ground_truths, est_dirs, subj_ids):
+def get_and_plot_results(ground_truths, est_dirs, subj_ids, raw_images=None):
     df = None
     for est_dir_key in est_dirs:
 
@@ -87,9 +87,9 @@ def get_and_plot_results(ground_truths, est_dirs, subj_ids):
         new_df = results(ground_truths, {est_dir_key: est_dirs[est_dir_key]}, search_pattern=search_pattern)
         new_df_long = results_long(new_df, dataset_split_file)
 
-        f, axes = plt.subplots(len(subj_ids), 1, figsize=(9, 4 * len(subj_ids)))
+        f, axes = plt.subplots(len(subj_ids), 1, figsize=(9, 3 * len(subj_ids)))
         f.suptitle("Experiment %s" % est_dir_key)
-        show_model_outputs(ground_truths, new_df_long, {est_dir_key: est_dirs[est_dir_key]}, subj_ids, axes)
+        show_model_outputs(ground_truths, new_df_long, {est_dir_key: est_dirs[est_dir_key]}, subj_ids, axes, raw_images)
 
         if df is None:
             df = new_df_long
@@ -100,14 +100,19 @@ def get_and_plot_results(ground_truths, est_dirs, subj_ids):
     return combined_df
 
 
-def show_model_outputs(ground_truths, df, est_dirs, subj_ids, axes):
+def show_model_outputs(ground_truths, df, est_dirs, subj_ids, axes, raw_images=None):
     """Plots the results for visualisation"""
     for est_dir in est_dirs.values():
         for i, sid in enumerate(subj_ids):
             a = imread([f for f in ground_truths if sid in f][0])
             b = nib.load(est_dir + '/' + sid + '_niftynet_out.nii.gz').get_data().squeeze()
 
-            axes[i].imshow(np.hstack([a, b, a - b]), cmap='gray')
+            if raw_images is not None:
+                # show raw images as well
+                c = imread([f for f in raw_images if sid in f][0]) / 255
+                axes[i].imshow(np.hstack([c, a, b, a - b]), cmap='gray')
+            else:
+                axes[i].imshow(np.hstack([a, b, a - b]), cmap='gray')
             axes[i].set_axis_off()
 
             train_or_val = df[df['ids'] == sid]['fold'].values[0]
