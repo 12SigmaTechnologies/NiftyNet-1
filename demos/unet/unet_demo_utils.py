@@ -15,12 +15,12 @@ def dice_score(gt, img):
     return num / den
 
 
-def results(ground_truths, est_dirs):
+def results(ground_truths, est_dirs, search_pattern='.*bin_seg_(.*_\d+)'):
     """Collates the dice scores from various experiments"""
     result = {e: [] for e in est_dirs}
     result['ids'] = []
     for f in ground_truths:
-        r = re.search('.*bin_seg_(.*_\d+)', f)
+        r = re.search(search_pattern, f)
         if r:
             gt = imread(f)
             subj_id = r.group(1)
@@ -49,7 +49,7 @@ def add_experiment_info_to_datasets(df, est_dirs):
 
     for est_dir_key in est_dirs:
         # getting the dataset_split file from the settings_train txt file:
-        train_settings = ' '.join([l.strip() for l in open(est_dirs[est_dir_key] + '../settings_train.txt', 'r')])
+        train_settings = ' '.join([l.strip() for l in open(est_dirs[est_dir_key] + '../settings_training.txt', 'r')])
 
         experiment_numbers.append(est_dir_key)
 
@@ -71,8 +71,7 @@ def add_experiment_info_to_datasets(df, est_dirs):
                  }
 
     conditions_df = pd.DataFrame(data_dict)
-    combined_df = pd.merge(df, conditions_df)
-
+    combined_df = pd.merge(df, conditions_df, left_index=True, right_index=True)
     return combined_df
 
 
@@ -81,13 +80,14 @@ def get_and_plot_results(ground_truths, est_dirs, subj_ids):
     for est_dir_key in est_dirs:
 
         # getting the dataset_split file from the settings_train txt file:
-        train_settings = [l.strip() for l in open(est_dirs[est_dir_key] + '../settings_train.txt', 'r')]
+        train_settings = [l.strip() for l in open(est_dirs[est_dir_key] + '../settings_training.txt', 'r')]
         dataset_split_file = [x.split(':')[1].strip() for x in train_settings if 'dataset_split' in x][0]
 
-        new_df = results(ground_truths, {est_dir_key: est_dirs[est_dir_key]})
+        search_pattern = '([^/]*)_binary_mask'
+        new_df = results(ground_truths, {est_dir_key: est_dirs[est_dir_key]}, search_pattern=search_pattern)
         new_df_long = results_long(new_df, dataset_split_file)
 
-        f, axes = plt.subplots(2, 1, figsize=(9, 5))
+        f, axes = plt.subplots(len(subj_ids), 1, figsize=(9, 4 * len(subj_ids)))
         f.suptitle("Experiment %s" % est_dir_key)
         show_model_outputs(ground_truths, new_df_long, {est_dir_key: est_dirs[est_dir_key]}, subj_ids, axes)
 
