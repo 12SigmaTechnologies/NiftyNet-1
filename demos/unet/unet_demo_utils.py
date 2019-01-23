@@ -88,6 +88,8 @@ def get_and_plot_results(ground_truths, est_dirs, subj_ids, raw_images=None):
         new_df_long = results_long(new_df, dataset_split_file)
 
         f, axes = plt.subplots(len(subj_ids), 1, figsize=(9, 3 * len(subj_ids)))
+        if len(subj_ids) == 1:
+            axes = [axes]
         f.suptitle("Experiment %s" % est_dir_key)
         show_model_outputs(ground_truths, new_df_long, {est_dir_key: est_dirs[est_dir_key]}, subj_ids, axes, raw_images)
 
@@ -118,3 +120,15 @@ def show_model_outputs(ground_truths, df, est_dirs, subj_ids, axes, raw_images=N
             train_or_val = df[df['ids'] == sid]['fold'].values[0]
             axes[i].set_title('{} Fold: Ground truth, Estimate and Difference. Dice Score = {:.2f}'.format(
                 train_or_val, dice_score(a, b)))
+
+
+def save_visualization(output_dir, ground_truths, est_dirs, subj_ids, raw_images=None):
+    """Save hstacked visualization to output_dir"""
+    os.makedirs(output_dir, exist_ok=True)
+    for sid in subj_ids:
+        # save visualization of individual subj_id to file
+        plt.clf()
+        get_and_plot_results(ground_truths, est_dirs, [sid], raw_images)
+        fig = plt.gcf()
+        fig.savefig(os.path.join(output_dir, sid + '_vis.png'))
+
