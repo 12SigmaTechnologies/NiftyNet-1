@@ -114,19 +114,25 @@ class UNet2D(BaseNet):
         up_h_convs = OrderedDict()
 
         fs = self.filter_size
+        ps = self.pool_size
 
         # down layers
         for layer in range(0, self.num_layers):
             features = 2 ** layer * self.features_root
             stddev = np.sqrt(2 / (fs ** 2 * features))
             if layer == 0:
-                w1 = weight_variable([fs, fs, self.num_channels, features], stddev)
+                name = 'layer{}_down_w1'.format(layer)
+                w1 = weight_variable([fs, fs, self.num_channels, features], stddev, name=name)
             else:
-                w1 = weight_variable([fs, fs, features // 2, features], stddev)
+                name = 'layer{}_down_w1'.format(layer)
+                w1 = weight_variable([fs, fs, features // 2, features], stddev, name=name)
 
-            w2 = weight_variable([fs, fs, features, features], stddev)
-            b1 = bias_variable([features])
-            b2 = bias_variable([features])
+            name = 'layer{}_down_w2'.format(layer)
+            w2 = weight_variable([fs, fs, features, features], stddev, name=name)
+            name = 'layer{}_down_b1'.format(layer)
+            b1 = bias_variable([features], name=name)
+            name = 'layer{}_down_b2'.format(layer)
+            b2 = bias_variable([features], name=name)
 
             conv1 = conv2d(in_node, w1, self.keep_prob, padding=self.padding)
             tmp_h_conv = tf.nn.relu(conv1 + b1)
@@ -138,7 +144,7 @@ class UNet2D(BaseNet):
             convs.append((conv1, conv2))
 
             if layer < self.num_layers - 1:
-                pools[layer] = max_pool(dw_h_convs[layer], self.pool_size, padding=self.padding)
+                pools[layer] = max_pool(dw_h_convs[layer], ps, padding=self.padding)
                 in_node = pools[layer]
 
         in_node = dw_h_convs[self.num_layers - 1]
@@ -148,16 +154,22 @@ class UNet2D(BaseNet):
             features = 2 ** (layer + 1) * self.features_root
             stddev = np.sqrt(2 / (fs ** 2 * features))
 
-            wd = weight_variable_devonc([self.pool_size, self.pool_size, features // 2, features], stddev)
-            bd = bias_variable([features // 2])
-            h_deconv = tf.nn.relu(deconv2d(in_node, wd, self.pool_size, padding=self.padding) + bd)
+            name = 'layer{}_up_wd'.format(layer)
+            wd = weight_variable_devonc([ps, ps, features // 2, features], stddev, name=name)
+            name = 'layer{}_up_bd'.format(layer)
+            bd = bias_variable([features // 2], name=name)
+            h_deconv = tf.nn.relu(deconv2d(in_node, wd, ps, padding=self.padding) + bd)
             h_deconv_concat = crop_and_concat(dw_h_convs[layer], h_deconv)
             deconv[layer] = h_deconv_concat
 
-            w1 = weight_variable([fs, fs, features, features // 2], stddev)
-            w2 = weight_variable([fs, fs, features // 2, features // 2], stddev)
-            b1 = bias_variable([features // 2])
-            b2 = bias_variable([features // 2])
+            name = 'layer{}_up_w1'.format(layer)
+            w1 = weight_variable([fs, fs, features, features // 2], stddev, name=name)
+            name = 'layer{}_up_w2'.format(layer)
+            w2 = weight_variable([fs, fs, features // 2, features // 2], stddev, name=name)
+            name = 'layer{}_up_b1'.format(layer)
+            b1 = bias_variable([features // 2], name=name)
+            name = 'layer{}_up_b2'.format(layer)
+            b2 = bias_variable([features // 2], name=name)
 
             conv1 = conv2d(h_deconv_concat, w1, self.keep_prob, padding=self.padding)
             h_conv = tf.nn.relu(conv1 + b1)
@@ -170,8 +182,10 @@ class UNet2D(BaseNet):
             convs.append((conv1, conv2))
 
         # Output Map
-        weight = weight_variable([1, 1, self.features_root, self.num_classes], stddev)
-        bias = bias_variable([self.num_classes])
+        name = 'final_w'
+        weight = weight_variable([1, 1, self.features_root, self.num_classes], stddev, name=name)
+        name = 'final_b'
+        bias = bias_variable([self.num_classes], name=name)
         conv = conv2d(in_node, weight, tf.constant(1.0), padding=self.padding)
         output_tensor = tf.nn.relu(conv + bias)
 
@@ -227,16 +241,17 @@ class CropConcat(Layer):
 
 
 # TODO: refactor the following ino Layers
-def weight_variable(shape, stddev=0.1):
+def weight_variable(shape, stddev=0.1, name=None):
     initial = tf.truncated_normal(shape, stddev=stddev)
-    return tf.Variable(initial)
+    return tf.get_variable(name, initializer=initial)
 
-def weight_variable_devonc(shape, stddev=0.1):
-    return tf.Variable(tf.truncated_normal(shape, stddev=stddev))
+def weight_variable_devonc(shape, stddev=0.1, name=None):
+    initial = tf.truncated_normal(shape, stddev=stddev)
+    return tf.get_variable(name, initializer=initial)
 
-def bias_variable(shape):
+def bias_variable(shape, name=None):
     initial = tf.constant(0.1, shape=shape)
-    return tf.Variable(initial)
+    return tf.get_variable(name, initializer=initial)
 
 def conv2d(x, W,keep_prob_, padding='VALID'):
     conv_2d = tf.nn.conv2d(x, W, strides=[1, 1, 1, 1], padding=padding)
