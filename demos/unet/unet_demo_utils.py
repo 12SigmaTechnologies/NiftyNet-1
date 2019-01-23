@@ -75,7 +75,7 @@ def add_experiment_info_to_datasets(df, est_dirs):
     return combined_df
 
 
-def get_and_plot_results(ground_truths, est_dirs, subj_ids, raw_images=None):
+def get_and_plot_results(ground_truths, est_dirs, subj_ids, raw_images=None, figsize=None):
     df = None
     for est_dir_key in est_dirs:
 
@@ -87,7 +87,8 @@ def get_and_plot_results(ground_truths, est_dirs, subj_ids, raw_images=None):
         new_df = results(ground_truths, {est_dir_key: est_dirs[est_dir_key]}, search_pattern=search_pattern)
         new_df_long = results_long(new_df, dataset_split_file)
 
-        f, axes = plt.subplots(len(subj_ids), 1, figsize=(9, 3 * len(subj_ids)))
+        figsize = (9, 3 * len(subj_ids)) if figsize is None else figsize
+        f, axes = plt.subplots(len(subj_ids), 1, figsize=figsize)
         if len(subj_ids) == 1:
             axes = [axes]
         f.suptitle("Experiment %s" % est_dir_key)
@@ -122,13 +123,13 @@ def show_model_outputs(ground_truths, df, est_dirs, subj_ids, axes, raw_images=N
                 train_or_val, dice_score(a, b)))
 
 
-def save_visualization(output_dir, ground_truths, est_dirs, subj_ids, raw_images=None):
+def save_visualization(output_dir, ground_truths, est_dirs, subj_ids, raw_images=None, figsize=None):
     """Save hstacked visualization to output_dir"""
     os.makedirs(output_dir, exist_ok=True)
     for sid in subj_ids:
         # save visualization of individual subj_id to file
         plt.clf()
-        get_and_plot_results(ground_truths, est_dirs, [sid], raw_images)
+        get_and_plot_results(ground_truths, est_dirs, [sid], raw_images, figsize=figsize)
         fig = plt.gcf()
         fig.savefig(os.path.join(output_dir, sid + '_vis.png'))
 
