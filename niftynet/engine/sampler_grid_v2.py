@@ -53,9 +53,9 @@ class GridSampler(ImageWindowDataset):
         tf.logging.info('initialised window instance')
         tf.logging.info("initialised grid sampler %s", self.window.shapes)
 
-    def layer_op(self):
+    def layer_op(self, idx=None):
         while True:
-            image_id, data, _ = self.reader(idx=None, shuffle=False)
+            image_id, data, _ = self.reader(idx=idx, shuffle=False)
             if not data:
                 break
             image_shapes = {name: data[name].shape
