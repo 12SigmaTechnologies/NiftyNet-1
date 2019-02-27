@@ -43,9 +43,10 @@ class RandomRotationLayer(RandomisedLayer):
     def randomise(self, spatial_rank=3):
         if spatial_rank == 3:
             self._randomise_transformation_3d()
+        elif spatial_rank == 2:
+            self._randomise_transformation_2d()
         else:
-            # currently not supported spatial rank for rand rotation
-            pass
+            raise NotImplementedError
 
     def _randomise_transformation_3d(self):
         angle_x = 0.0
@@ -91,15 +92,36 @@ class RandomRotationLayer(RandomisedLayer):
     def _apply_transformation_3d(self, image_3d, interp_order=3):
         if interp_order < 0:
             return image_3d
+        print("image_3d.ndim", image_3d.ndim)
+        print("self._transform", self._transform)
+        print("image_3d.shape", image_3d.shape)
         assert image_3d.ndim == 3
         assert self._transform is not None
-        assert all([dim > 1 for dim in image_3d.shape]), \
-            'random rotation supports 3D inputs only'
+        # assert all([dim > 1 for dim in image_3d.shape]), \
+        #     'random rotation supports 3D inputs only'
         center_ = 0.5 * np.asarray(image_3d.shape, dtype=np.int64)
         c_offset = center_ - center_.dot(self._transform)
         image_3d[...] = scipy.ndimage.affine_transform(
             image_3d[...], self._transform.T, c_offset, order=interp_order)
         return image_3d
+
+    def _randomise_transformation_2d(self):
+        angle = np.random.uniform(
+            self.min_angle, self.max_angle) * np.pi / 180.0
+        transform = np.array([[np.cos(angle), -np.sin(angle)],
+                                [np.sin(angle), np.cos(angle)]])
+        self._transform = transform
+
+    def _apply_transformation_2d(self, image, interp_order=3):
+        if interp_order < 0:
+            return image
+        center_ = 0.5 * np.asarray(image.shape[:2], dtype=np.int64)
+        self.randomise(spatial_rank=2)
+        c_offset = center_ - center_.dot(self._transform)
+
+        image[...] = scipy.ndimage.affine_transform(
+            image[...], self._transform.T, c_offset, order=interp_order)
+        return image
 
     def layer_op(self, inputs, interp_orders, *args, **kwargs):
         if inputs is None:
@@ -109,17 +131,27 @@ class RandomRotationLayer(RandomisedLayer):
             for (field, image) in inputs.items():
                 interp_order = interp_orders[field][0]
                 for channel_idx in range(image.shape[-1]):
-                    if image.ndim == 4:
-                        inputs[field][..., channel_idx] = \
-                            self._apply_transformation_3d(
-                                image[..., channel_idx], interp_order)
-                    elif image.ndim == 5:
+                    # print('image dimension', image.ndim)
+                    # print('image shape', image.shape)
+                    # print("spatial rank", inputs.spacial_rank)
+                    if image.shape[2] == 1:
                         for t in range(image.shape[-2]):
-                            inputs[field][..., t, channel_idx] = \
-                                self._apply_transformation_3d(
-                                    image[..., t, channel_idx], interp_order)
+                            for z in range(image.shape[-3]):
+                                inputs[field][..., z, t, channel_idx] = \
+                                    self._apply_transformation_2d(
+                                        image[..., z, t, channel_idx], interp_order)
                     else:
-                        raise NotImplementedError("unknown input format")
+                        if image.ndim == 4:
+                            inputs[field][..., channel_idx] = \
+                                self._apply_transformation_3d(
+                                    image[..., channel_idx], interp_order)
+                        elif image.ndim == 5:
+                            for t in range(image.shape[-2]):
+                                inputs[field][..., t, channel_idx] = \
+                                    self._apply_transformation_3d(
+                                        image[..., t, channel_idx], interp_order)
+                        else:
+                            raise NotImplementedError("unknown input format")
             # shapes = []
             # for (field, image) in inputs.items():
             #     shapes.append(image.shape)
