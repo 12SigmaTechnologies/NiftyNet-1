@@ -322,8 +322,8 @@ def cross_entropy(prediction, ground_truth, weight_map=None):
     max_left_lung_seg = 18
 
     #import lung mask
-    left_lung_mask = tf.to_int32(ground_truth < 11)
-    right_lung_mask = tf.to_int32(ground_truth > 10)
+    left_lung_mask = tf.to_int32(ground_truth > 10)
+    right_lung_mask = tf.to_int32((ground_truth > 0) & (ground_truth < 11))
     # duplicate right lung mask 10 times
     tmp_matl = tf.ones([(max_right_lung_seg-min_right_lung_seg)+1, 1]) #10x1
     tmp_matl = tf.cast(tmp_matl, tf.int32)
@@ -342,14 +342,14 @@ def cross_entropy(prediction, ground_truth, weight_map=None):
     #only penalize pixels predicted as left lung, if it is correct right lung pixel predicted as right lung, it will be 0
     penalize_prob_right = tf.multiply(prediction_right, left_lung_mask_expand)
     gt_prob_right = tf.zeros([128**3, (max_right_lung_seg-min_right_lung_seg)+1], tf.float32)
-    L1_right = tf.reduce_sum(tf.abs(penalize_prob_right-gt_prob_right))/(128**3) #L1 loss 1x1
+    L1_right = tf.reduce_mean(tf.abs(penalize_prob_right-gt_prob_right)) #L1 loss 1x1
 
     #----left
     prediction_left = prediction[:, min_left_lung_seg:max_left_lung_seg+1] #128^3 x 8
     right_lung_mask_expand = tf.cast(right_lung_mask_expand, tf.float32)
     penalize_prob_left = tf.multiply(prediction_left, right_lung_mask_expand)
     gt_prob_left = tf.zeros([128**3, (max_left_lung_seg-min_left_lung_seg)+1], tf.float32)
-    L1_left = tf.reduce_sum(tf.abs(penalize_prob_left-gt_prob_left))/(128**3)
+    L1_left = tf.reduce_mean(tf.abs(penalize_prob_left-gt_prob_left))
 
     if weight_map is None:
         return tf.reduce_mean(entropy) + alpha_right_loss*L1_right + alpha_left_loss*L1_left
