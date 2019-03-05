@@ -309,9 +309,13 @@ class ClassificationApplication(BaseApplication):
             image = tf.cast(data_dict['image'], tf.float32)
             net_args = {'is_training': self.is_training,
                         'keep_prob': self.net_param.keep_prob}
+            tf.logging.info(
+                'net_input.tensor_name: %s', image.name)
             net_out = self.net(image, **net_args)
             tf.logging.info(
                 'net_out.shape may need to be resized: %s', net_out.shape)
+            tf.logging.info(
+                'net_out.tensor_name: %s', net_out.name)
             output_prob = self.classification_param.output_prob
             num_classes = self.classification_param.num_classes
             if output_prob and num_classes > 1:
@@ -323,6 +327,7 @@ class ClassificationApplication(BaseApplication):
             else:
                 post_process_layer = PostProcessingLayer(
                     'IDENTITY', num_classes=num_classes)
+
             net_out = post_process_layer(net_out)
 
             outputs_collector.add_to_collection(
